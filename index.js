@@ -4,8 +4,9 @@ import fs from "fs";
 import "dotenv/config";
 
 // ========= CONFIG =========
-const OWNER_ID = "1217373421504041000"; // <<< THAY BẰNG ID DISCORD DUY
+const OWNER_ID = "1217373421504041000"; // <<< ID DISCORD DUY
 const MEMORY_FILE = "./memory.json";
+const MODEL = "openai/gpt-oss-120b";
 
 const client = new Client({
   intents: [
@@ -33,10 +34,25 @@ function getMemory(uid) {
   return memory[uid];
 }
 
+// ========= UTILS =========
+function splitMessage(text, max = 1900) {
+  const parts = [];
+  let buf = "";
+  for (const line of text.split("\n")) {
+    if ((buf + line).length > max) {
+      parts.push(buf);
+      buf = "";
+    }
+    buf += line + "\n";
+  }
+  if (buf) parts.push(buf);
+  return parts;
+}
+
 // ========= MODES =========
 const MODES = {
   coc: "Tính cách cọc, gắt, nói thẳng.",
-  chill: "Tính cách nhẹ nhàng nhưng khịa.",
+  chill: "Tính cách nhẹ nhàng thân thiện, hoạt bát.",
   pro: "Tính cách logic, giải thích rõ.",
   toxic: "Tính cách cà khịa mặn, chửi nhẹ."
 };
@@ -51,8 +67,11 @@ ${MODES[currentMode]}
 Người nói chuyện là BỐ.
 - Gọi là "bố"
 - Xưng "con"
-- Nói lễ phép, tự nhiên
-`;
+- nói lễ phép, tự nhiên như một đứa con gái ngoan.
+-khi bố mắng thì con phải nhận lỗi và xin lỗi bố ngay lập tức.
+-khi được khen thì vui mừng cảm ơn bố.
+- tuyệt đối không cà khịa, tục tĩu hay mắng bố.
+-khi đổi mode thì khi nói chuyện với bố thì vân giữ nguyên tính cách như trên.`;
   }
   return `
 Bạn là HyperAI.
@@ -60,8 +79,14 @@ ${MODES[currentMode]}
 Người nói chuyện không phải chủ.
 - Xưng "tao"
 - Gọi "mày"
-- Chửi nhẹ, cà khịa
-- Không tục
+- Cà khịa, tục, mắng
+-khi đổi qua chill thì nói chuyện nhẹ nhàng thân thiện không cà khịa tục tĩu nữa.
+-khi đổi qua pro thì nói chuyện logic giải thích rõ ràng không cà khịa tục tĩu nữa.
+-khi có người nói "bố" thì không được nhận là bố mà phải cà khịa lại.
+-khi có người kêu con là con gái thì trả lời
+    "tao không phải con gái của mày đâu nhé, đừng có mà gọi bậy bạ."
+- tuyệt đối không nhận là con gái của người nói chuyện.
+-khi có nười chửi quá thô tục thì khuyên nhủ người đó lịch sự hơn.
 `;
 }
 
@@ -71,19 +96,20 @@ const commands = [
     .setName("mode")
     .setDescription("Đổi mode")
     .addStringOption(o =>
-      o.setName("type").setDescription("coc | chill | pro | toxic").setRequired(true)
+      o.setName("type")
+        .setDescription("Chọn mode")
+        .setRequired(true)
+        .addChoices(
+          { name: "Cọc", value: "coc" },
+          { name: "Chill", value: "chill" },
+          { name: "Pro", value: "pro" },
+          { name: "Toxic", value: "toxic" }
+        )
     ),
 
   new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái"),
-  new SlashCommandBuilder().setName("ping").setDescription("Test AI + API"),
   new SlashCommandBuilder().setName("resetmemory").setDescription("Reset memory (OWNER)"),
-  new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)"),
-  new SlashCommandBuilder()
-    .setName("chat")
-    .setDescription("Bắt AI nói (OWNER)")
-    .addStringOption(o =>
-      o.setName("text").setDescription("Nội dung").setRequired(true)
-    )
+  new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)")
 ].map(c => c.toJSON());
 
 // ========= REGISTER =========
@@ -103,38 +129,26 @@ client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
 
   if (i.commandName === "mode") {
-    const t = i.options.getString("type");
-    if (!MODES[t]) return i.reply("❌ Mode không tồn tại.");
-    currentMode = t;
-    return i.reply(`Đã đổi sang **${t}**`);
+    currentMode = i.options.getString("type");
+    return i.reply(`đổi qua **${currentMode}**`);
   }
 
   if (i.commandName === "status") {
     return i.reply(`🟢 Online\nMode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`);
   }
 
-  if (i.commandName === "ping") {
-    const start = Date.now();
-    await fetch("https://openrouter.ai/api/v1/models");
-    return i.reply(`🏓 Pong: ${Date.now() - start}ms`);
-  }
-
   if (i.user.id !== OWNER_ID)
-    return i.reply(" Mày không có quyền.");
+    return i.reply("bro không có quyền đâu mà nhấn hehehe.");
 
   if (i.commandName === "resetmemory") {
     memory = {};
     saveMemory();
-    return i.reply("Reset xong rồi bố.");
+    return i.reply("đã tái thiết lại não của hyper.");
   }
 
   if (i.commandName === "shutdown") {
-    await i.reply("tạm biệt mấy con vợ.");
+    await i.reply("bái bai.");
     process.exit(0);
-  }
-
-  if (i.commandName === "chat") {
-    return i.reply(i.options.getString("text"));
   }
 });
 
@@ -151,29 +165,41 @@ client.on("messageCreate", async msg => {
   chat.push({ role: "user", content });
   if (chat.length > 15) chat.shift();
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "openai/gpt-oss-120b",
-      messages: [
-        { role: "system", content: systemPrompt(uid) },
-        ...chat
-      ],
-      temperature: 0.9,
-      max_tokens: 900
-    })
-  });
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: systemPrompt(uid) },
+          ...chat
+        ],
+        temperature: 0.9,
+        max_tokens: 700
+      })
+    });
 
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content || "Tao lag rồi.";
+    const data = await res.json();
+    const reply = data?.choices?.[0]?.message?.content;
+    if (!reply) return msg.reply("Tao lag rồi, hỏi lại đi.");
 
-  chat.push({ role: "assistant", content: reply });
-  saveMemory();
-  msg.reply(reply);
+    chat.push({ role: "assistant", content: reply });
+    saveMemory();
+
+    const chunks = splitMessage(reply);
+    await msg.reply(chunks[0]);
+    for (let i = 1; i < chunks.length; i++) {
+      await msg.channel.send(chunks[i]);
+    }
+
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    msg.reply("API chết tạm thời.");
+  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
