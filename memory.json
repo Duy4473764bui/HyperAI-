@@ -1,10 +1,6 @@
 {
   "1217373421504041000": [
     {
-      "role": "assistant",
-      "content": "Tao lag rồi."
-    },
-    {
       "role": "user",
       "content": "M ổn k"
     },
@@ -75,6 +71,32 @@
     {
       "role": "assistant",
       "content": "Bố có việc gì cần con giúp không?"
+    },
+    {
+      "role": "user",
+      "content": "con gái chỉ cách cho bạn <@1407960117948715010> hết đau lưng đi"
+    },
+    {
+      "role": "assistant",
+      "content": "Bố ơi, để giảm đau lưng nhanh các bước sau thường hiệu quả, nhưng nếu cơn đau kéo dài hoặc kèm theo tê, yếu chi, hãy đến bác sĩ hoặc chuyên gia vật lý trị liệu để được khám và chẩn đoán chính xác nhé.\n\n---\n\n## 1️⃣ Kiểm tra tư thế hàng ngày\n| Hoạt động | Lưu ý | Cách sửa |\n|-----------|------|----------|\n| Ngồi làm việc | Đặt ghế sao cho lưng tựa vào tựa lưng, gối tựa lưng nếu cần. Đặt bàn phím, chuột ở mức tay vừa, không phải cúi vai. | - Chỉnh ghế sao cho đầu gối hơi cao hơn mặt sàn (góc ~90°). <br>- Đặt màn hình ngang mắt (cách mắt ~50‑70 cm). |\n| Đứng | Tránh đứng quá lâu, chuyển trọng lực qua hai chân đều đều. | - Đặt trọng lượng lên cả hai chân, không để một chân “ngả”. |\n| Ngủ | Đệm không quá cứng, không quá mềm; ngủ nghiêng với gối giữa hai gối để cân bằng cột sống. | - Nếu ngủ nằm ngửa, đặt gối dưới gối lưng dưới (vùng lưng dưới). |\n\n---\n\n## 2️⃣ Bài tập và kéo dãn nhẹ (mỗi ngày 5‑10 phút)\n\n| Bài tập | Thực hiện | Lưu ý |\n|---------|----------|------|\n| **Kéo căng cơ lưng (Cat‑Cow stretch)** | 1. Đặt tay và đầu gối trên sàn (tư thế “bàn”).<br>2. Húng lưng lên (Cat) rồi hạ xuống (Cow), mỗi chuyển động 5‑6 giây. | Lặp 8‑10 lần, hít thở đều. |\n| **Gập gối kéo về phía ngực** | Nằm ngửa, kéo một đầu gối lên ngực, giữ 20‑30 giây, đổi bên. | Không ép mạnh, chỉ cảm nhận kéo nhẹ. |\n| **Plank nhẹ (tư thế ghế bành)** | Đặt tay và đầu gối trên sàn, giữ thân người thẳng, kéo bụng vào. | Giữ 15‑30 giây, tăng dần thời gian. |\n| **Bridge (cầu)** | Nằm ngửa, gối cong, nâng hông lên, giữ 10‑15 giây. | Giúp củng cố cơ mông và cơ lưng dưới. |\n| **Kéo căng cơ chậu (Hip flexor stretch)** | Đặt một chân lên ghế, đầu gối còn lại chạm sàn, đẩy hông về phía trước. | Giữ 20‑30 giây mỗi bên. |\n\n> **Tip:** Khi thực hiện bất kỳ động tác nào, nếu cảm thấy đau nhói mạnh, ngừng lại ngay và tham khảo ý kiến bác sĩ.\n\n---\n\n## 3️⃣ Bổ sung hỗ trợ cơ học (ergonomic)\n\n1. **Ghế công thái học** – có tựa lưng, hỗ trợ đường cong tự nhiên của cột sống.  \n2. **Gối lumbar** – đặt vào lỗ lưng của ghế nếu ghế không có tựa lưng.  \n3. **Bàn làm việc đứng** (standing desk) – thay đổi giữa ngồi và đứng 20‑30 phút mỗi giờ.  \n4. **Đệm lót lưng khi lái xe** – dùng gối vòng hoặc đệm lưng để giảm áp lực vào đĩa đệm.\n\n---\n\n## 4️⃣ Thói quen sinh hoạt\n\n| Thói quen | Tại"
+    }
+  ],
+  "892665117127352441": [
+    {
+      "role": "user",
+      "content": "Ê"
+    },
+    {
+      "role": "assistant",
+      "content": "Ê, mày có chuyện gì muốn hỏi tao không?"
+    },
+    {
+      "role": "user",
+      "content": "T buồn ngủ"
+    },
+    {
+      "role": "assistant",
+      "content": "Đừng có rụt ru! Đánh bầu, uống cà phê hoặc nhảy một vòng để tỉnh táo đi, mày. Nếu vẫn buồn ngủ thì ngủ ít phút rồi lại làm việc, đừng để ngày trôi qua vì lười biếng."
     }
   ]
 }

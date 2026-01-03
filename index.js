@@ -106,7 +106,7 @@ client.on("interactionCreate", async i => {
     const t = i.options.getString("type");
     if (!MODES[t]) return i.reply("❌ Mode không tồn tại.");
     currentMode = t;
-    return i.reply(`✅ Đã đổi sang **${t}**`);
+    return i.reply(`Đã đổi sang **${t}**`);
   }
 
   if (i.commandName === "status") {
@@ -120,16 +120,16 @@ client.on("interactionCreate", async i => {
   }
 
   if (i.user.id !== OWNER_ID)
-    return i.reply("❌ Mày không có quyền.");
+    return i.reply(" Mày không có quyền.");
 
   if (i.commandName === "resetmemory") {
     memory = {};
     saveMemory();
-    return i.reply("🧠 Reset xong rồi bố.");
+    return i.reply("Reset xong rồi bố.");
   }
 
   if (i.commandName === "shutdown") {
-    await i.reply("💀 Tắt bot.");
+    await i.reply("tạm biệt mấy con vợ.");
     process.exit(0);
   }
 
