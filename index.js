@@ -107,6 +107,15 @@ const commands = [
         )
     ),
 
+  new SlashCommandBuilder()
+    .setName("ask")
+    .setDescription("Hỏi HyperAI")
+    .addStringOption(o =>
+      o.setName("question")
+        .setDescription("Nhập câu hỏi")
+        .setRequired(true)
+    ),
+
   new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái"),
   new SlashCommandBuilder().setName("resetmemory").setDescription("Reset memory (OWNER)"),
   new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)")
@@ -135,6 +144,53 @@ client.on("interactionCreate", async i => {
 
   if (i.commandName === "status") {
     return i.reply(`🟢 Online\nMode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`);
+  }
+
+  if (i.commandName === "ask") {
+    const question = i.options.getString("question");
+    const uid = i.user.id;
+
+    const chat = getMemory(uid);
+    chat.push({ role: "user", content: question });
+    if (chat.length > 15) chat.shift();
+
+    await i.deferReply();
+
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: systemPrompt(uid) },
+            ...chat
+          ],
+          temperature: 0.9,
+          max_tokens: 700
+        })
+      });
+
+      const data = await res.json();
+      const reply = data?.choices?.[0]?.message?.content || "Tao lag rồi.";
+
+      chat.push({ role: "assistant", content: reply });
+      saveMemory();
+
+      const chunks = splitMessage(reply);
+      await i.editReply(chunks[0]);
+      for (let x = 1; x < chunks.length; x++) {
+        await i.followUp(chunks[x]);
+      }
+
+    } catch (err) {
+      console.error("AI ERROR:", err);
+      await i.editReply("API chết tạm thời.");
+    }
+    return;
   }
 
   if (i.user.id !== OWNER_ID)
