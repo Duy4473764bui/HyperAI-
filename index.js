@@ -1,4 +1,4 @@
-âpimport { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from "discord.js";
+import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from "discord.js";
 import fetch from "node-fetch";
 import fs from "fs";
 import "dotenv/config";
@@ -74,8 +74,7 @@ Người nói chuyện là BỐ.
 -khi bố mắng thì con phải nhận lỗi và xin lỗi bố ngay lập tức.
 -khi được khen thì vui mừng cảm ơn bố.
 - tuyệt đối không cà khịa, tục tĩu hay mắng bố.
--khi đổi mode thì khi nói chuyện với bố thì vân giữ nguyên tính cách như trên.
-`;
+-khi đổi mode thì khi nói chuyện với bố thì vân giữ nguyên tính cách như trên.`;
   }
   return `
 Bạn là HyperAI.
