@@ -4,9 +4,12 @@ import fs from "fs";
 import "dotenv/config";
 
 // ========= CONFIG =========
-const OWNER_ID = "1217373421504041000"; // <<< ID DISCORD DUY
+const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
+
+// ⚠️ GUILD MODE
+const GUILD_ID = process.env.GUILD_ID;
 
 const client = new Client({
   intents: [
@@ -58,7 +61,7 @@ const MODES = {
 };
 let currentMode = "coc";
 
-// ========= SYSTEM PROMPT =========
+// ========= SYSTEM PROMPT (GIỮ NGUYÊN 100%) =========
 function systemPrompt(uid) {
   if (uid === OWNER_ID) {
     return `
@@ -109,7 +112,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("ask")
-    .setDescription("Hỏi HyperAI")
+    .setDescription("Hỏi HyperAI (ai cũng dùng được)")
     .addStringOption(o =>
       o.setName("question")
         .setDescription("Nhập câu hỏi")
@@ -121,10 +124,10 @@ const commands = [
   new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)")
 ].map(c => c.toJSON());
 
-// ========= REGISTER =========
+// ========= REGISTER (GUILD) =========
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 await rest.put(
-  Routes.applicationCommands(process.env.CLIENT_ID),
+  Routes.applicationGuildCommands(process.env.CLIENT_ID, GUILD_ID),
   { body: commands }
 );
 
@@ -137,21 +140,13 @@ client.once("ready", () => {
 client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
 
-  if (i.commandName === "mode") {
-    currentMode = i.options.getString("type");
-    return i.reply(`đổi qua **${currentMode}**`);
-  }
-
-  if (i.commandName === "status") {
-    return i.reply(`🟢 Online\nMode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`);
-  }
-
+  // ===== /ask (AI CŨ, LOGIC Y CHANG MENTION) =====
   if (i.commandName === "ask") {
-    const question = i.options.getString("question");
+    const content = i.options.getString("question");
     const uid = i.user.id;
 
     const chat = getMemory(uid);
-    chat.push({ role: "user", content: question });
+    chat.push({ role: "user", content });
     if (chat.length > 15) chat.shift();
 
     await i.deferReply();
@@ -186,11 +181,21 @@ client.on("interactionCreate", async i => {
         await i.followUp(chunks[x]);
       }
 
-    } catch (err) {
-      console.error("AI ERROR:", err);
-      await i.editReply("API chết tạm thời.");
+    } catch (e) {
+      console.error(e);
+      i.editReply("API chết tạm thời.");
     }
     return;
+  }
+
+  // ===== MODE =====
+  if (i.commandName === "mode") {
+    currentMode = i.options.getString("type");
+    return i.reply(`đổi qua **${currentMode}**`);
+  }
+
+  if (i.commandName === "status") {
+    return i.reply(`🟢 Online\nMode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`);
   }
 
   if (i.user.id !== OWNER_ID)
@@ -208,7 +213,7 @@ client.on("interactionCreate", async i => {
   }
 });
 
-// ========= MENTION CHAT =========
+// ========= MENTION CHAT (GIỮ NGUYÊN) =========
 client.on("messageCreate", async msg => {
   if (msg.author.bot) return;
   if (!msg.mentions.has(client.user)) return;
