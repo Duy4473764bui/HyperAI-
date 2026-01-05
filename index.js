@@ -53,7 +53,7 @@ function splitMessage(text, max = 1900) {
 const MODES = {
   coc: "Tính cách cọc, gắt, nói thẳng.",
   ngoan: "Tính cách nhẹ nhàng thân thiện, hoạt bát.",
-  tu duy: "Tính cách logic, giải thích rõ.",
+  tuduy: "Tính cách logic, giải thích rõ.",
   toxic: "Tính cách cà khịa mặn, chửi nhẹ."
 };
 let currentMode = "ngoan";
