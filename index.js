@@ -1,19 +1,33 @@
-import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder
+} from "discord.js";
 import fetch from "node-fetch";
 import fs from "fs";
 import "dotenv/config";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ========= CONFIG =========
 const OWNER_ID = "1217373421504041000"; // <<< ID DISCORD DUY
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
 
+// ========= DISCORD =========
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
+});
+
+// ========= GEMINI (IMAGE ONLY) =========
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const imageModel = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash-image-preview"
 });
 
 // ========= MEMORY =========
@@ -58,7 +72,7 @@ const MODES = {
 };
 let currentMode = "ngoan";
 
-// ========= SYSTEM PROMPT =========
+// ========= SYSTEM PROMPT (GIỮ NGUYÊN 100%) =========
 function systemPrompt(uid) {
   if (uid === OWNER_ID) {
     return `
@@ -171,6 +185,15 @@ const commands = [
         )
     ),
 
+  new SlashCommandBuilder()
+    .setName("draw")
+    .setDescription("Vẽ ảnh bằng Gemini 2.5 Flash Image")
+    .addStringOption(o =>
+      o.setName("prompt")
+        .setDescription("Mô tả ảnh")
+        .setRequired(true)
+    ),
+
   new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái"),
   new SlashCommandBuilder().setName("resetmemory").setDescription("Reset memory (OWNER)"),
   new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)")
@@ -191,6 +214,22 @@ client.once("ready", () => {
 // ========= INTERACTION =========
 client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
+
+  if (i.commandName === "draw") {
+    await i.deferReply();
+    try {
+      const prompt = i.options.getString("prompt");
+      const result = await imageModel.generateContent(prompt);
+      const part = result.response.candidates[0].content.parts.find(p => p.inlineData);
+      if (!part) return i.editReply("Vẽ lỗi rồi 😭");
+
+      const buffer = Buffer.from(part.inlineData.data, "base64");
+      return i.editReply({ files: [{ attachment: buffer, name: "draw.png" }] });
+    } catch (e) {
+      console.error(e);
+      return i.editReply("Gemini chết 😵");
+    }
+  }
 
   if (i.commandName === "mode") {
     currentMode = i.options.getString("type");
@@ -216,7 +255,7 @@ client.on("interactionCreate", async i => {
   }
 });
 
-// ========= MENTION CHAT =========
+// ========= MENTION CHAT (OPENROUTER 120B) =========
 client.on("messageCreate", async msg => {
   if (msg.author.bot) return;
   if (!msg.mentions.has(client.user)) return;
