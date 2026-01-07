@@ -8,10 +8,10 @@ import {
 import fetch from "node-fetch";
 import fs from "fs";
 import "dotenv/config";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Runware } from "@runware/sdk";
 
 // ========= CONFIG =========
-const OWNER_ID = "1217373421504041000"; // <<< ID DISCORD DUY
+const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
 
@@ -24,10 +24,9 @@ const client = new Client({
   ]
 });
 
-// ========= GEMINI (IMAGE ONLY) =========
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const imageModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-image-preview"
+// ========= RUNWARE (IMAGE) =========
+const runware = new Runware({
+  apiKey: process.env.RUNWARE_API_KEY
 });
 
 // ========= MEMORY =========
@@ -194,7 +193,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("draw")
-    .setDescription("Vẽ ảnh bằng Gemini 2.5 Flash Image")
+    .setDescription("Vẽ ảnh bằng Runware")
     .addStringOption(o =>
       o.setName("prompt")
         .setDescription("Mô tả ảnh")
@@ -226,15 +225,23 @@ client.on("interactionCreate", async i => {
     await i.deferReply();
     try {
       const prompt = i.options.getString("prompt");
-      const result = await imageModel.generateContent(prompt);
-      const part = result.response.candidates[0].content.parts.find(p => p.inlineData);
-      if (!part) return i.editReply("Vẽ lỗi rồi 😭");
 
-      const buffer = Buffer.from(part.inlineData.data, "base64");
-      return i.editReply({ files: [{ attachment: buffer, name: "draw.png" }] });
+      const images = await runware.imageInference({
+        positivePrompt: prompt,
+        model: "runware:100@1",
+        width: 1024,
+        height: 1024,
+        numberResults: 1
+      });
+
+      if (!images || !images[0]?.imageURL) {
+        return i.editReply("Vẽ lỗi rồi 😭");
+      }
+
+      return i.editReply({ files: [images[0].imageURL] });
     } catch (e) {
       console.error(e);
-      return i.editReply("Gemini chết 😵");
+      return i.editReply("Draw chết rồi 💀");
     }
   }
 
