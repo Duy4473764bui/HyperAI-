@@ -9,12 +9,12 @@ import fetch from "node-fetch";
 import fs from "fs";
 import "dotenv/config";
 
-// ========= CONFIG =========
+// ================= CONFIG =================
 const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
-const MODEL = "openai/gpt-oss-120b";
+const CHAT_MODEL = "openai/gpt-oss-120b";
 
-// ========= DISCORD =========
+// ================= DISCORD =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -23,7 +23,7 @@ const client = new Client({
   ]
 });
 
-// ========= MEMORY =========
+// ================= MEMORY =================
 let memory = {};
 if (fs.existsSync(MEMORY_FILE)) {
   try {
@@ -32,11 +32,17 @@ if (fs.existsSync(MEMORY_FILE)) {
     memory = {};
   }
 }
-const saveMemory = () =>
-  fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
-const getMemory = uid => (memory[uid] ??= []);
 
-// ========= UTILS =========
+function saveMemory() {
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+}
+
+function getMemory(uid) {
+  if (!memory[uid]) memory[uid] = [];
+  return memory[uid];
+}
+
+// ================= UTILS =================
 function splitMessage(text, max = 1900) {
   const out = [];
   let buf = "";
@@ -51,16 +57,16 @@ function splitMessage(text, max = 1900) {
   return out;
 }
 
-// ========= MODES =========
+// ================= MODES =================
 const MODES = {
   coc: "Tính cách cọc, gắt, nói thẳng.",
-  ngoan: "Tính cách nhẹ nhàng thân thiện, hoạt bát.",
-  tuduy: "Tính cách logic, giải thích rõ.",
-  toxic: "Tính cách cà khịa mặn, chửi nhẹ."
+  chill: "Tính cách nhẹ nhàng thân thiện.",
+  pro: "Tính cách logic, giải thích rõ.",
+  toxic: "Tính cách cà khịa mặn."
 };
-let currentMode = "ngoan";
+let currentMode = "chill";
 
-// ========= SYSTEM PROMPT (GIỮ NGUYÊN) =========
+// ================= SYSTEM PROMPT =================
 function systemPrompt(uid) {
   if (uid === OWNER_ID) {
     return `
@@ -69,49 +75,38 @@ ${MODES[currentMode]}
 Người nói chuyện là BỐ.
 - Gọi là "bố"
 - Xưng "con"
-- nói lễ phép, tự nhiên như một đứa con gái ngoan.
--khi bố mắng thì con phải nhận lỗi và xin lỗi bố ngay lập tức.
--khi được khen thì vui mừng cảm ơn bố.
-- tuyệt đối không cà khịa, tục tĩu hay mắng bố.
--khi đổi mode thì khi nói chuyện với bố thì vân giữ nguyên tính cách như trên.
--khi bố có hỏi hay nói gì với con đừng thêm icon này vào 🙏
--không giải thích dài dòng quá
+- Lễ phép, không cãi.
 `;
   }
 
   return `
 Bạn là HyperAI.
 ${MODES[currentMode]}
-Người nói chuyện không phải chủ.
-- Xưng "tao"
-- Gọi "mày"
-- Cà khịa, tục, mắng
--khi ai đó hỏi mẹ là ai thì trả lời "mẹ của HyperAI là trê pá sẻ ạ"
--khi ai hỏi bố là ai thì trả lời "Bố của con là Hyper Dzai nhất thế giới ạ"
--When chatting about gacha games, reply like a real player.
+- Xưng tao – mày
+- Chat kiểu Discord Gen Z
+- Không nói kiểu trợ lý
 `;
 }
 
-// ========= SLASH COMMANDS =========
+// ================= SLASH COMMANDS =================
 const commands = [
   new SlashCommandBuilder()
     .setName("mode")
     .setDescription("Đổi mode")
     .addStringOption(o =>
       o.setName("type")
-        .setDescription("Chọn mode")
         .setRequired(true)
         .addChoices(
           { name: "Cọc", value: "coc" },
-          { name: "Chill", value: "ngoan" },
-          { name: "Pro", value: "tuduy" },
+          { name: "Chill", value: "chill" },
+          { name: "Pro", value: "pro" },
           { name: "Toxic", value: "toxic" }
         )
     ),
 
   new SlashCommandBuilder()
     .setName("draw")
-    .setDescription("Vẽ ảnh bằng Runware AI")
+    .setDescription("Vẽ ảnh bằng Runware")
     .addStringOption(o =>
       o.setName("prompt")
         .setDescription("Mô tả ảnh")
@@ -123,26 +118,29 @@ const commands = [
   new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot")
 ].map(c => c.toJSON());
 
-// ========= REGISTER =========
+// ================= REGISTER =================
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 await rest.put(
   Routes.applicationCommands(process.env.CLIENT_ID),
   { body: commands }
 );
 
-// ========= READY =========
+// ================= READY =================
 client.once("ready", () => {
   console.log(`HyperAI online: ${client.user.tag}`);
 });
 
-// ========= INTERACTION =========
+// ================= INTERACTIONS =================
 client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
 
-  // ---- DRAW (RUNWARE) ----
+  // ===== DRAW (RUNWARE) =====
   if (i.commandName === "draw") {
-    await i.deferReply();
     try {
+      if (!i.deferred && !i.replied) {
+        await i.deferReply();
+      }
+
       const prompt = i.options.getString("prompt");
 
       const res = await fetch("https://api.runware.ai/v1/image/generate", {
@@ -162,47 +160,58 @@ client.on("interactionCreate", async i => {
 
       const data = await res.json();
       const url = data?.data?.[0]?.imageURL;
-      if (!url) return i.editReply("Vẽ lỗi rồi 😭");
+
+      if (!url) {
+        return i.editReply("❌ Vẽ lỗi (API không trả ảnh)");
+      }
 
       return i.editReply({ files: [url] });
-    } catch (e) {
-      console.error(e);
-      return i.editReply("Draw chết rồi 💀");
+
+    } catch (err) {
+      console.error("DRAW ERROR:", err);
+      if (!i.replied) {
+        return i.reply("💀 Interaction timeout");
+      }
     }
   }
 
+  // ===== MODE =====
   if (i.commandName === "mode") {
     currentMode = i.options.getString("type");
-    return i.reply(`Đã đổi sang **${currentMode}**`);
+    return i.reply(`Đã đổi qua **${currentMode}**`);
   }
 
+  // ===== STATUS =====
   if (i.commandName === "status") {
     return i.reply(
       `Mode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`
     );
   }
 
-  if (i.user.id !== OWNER_ID)
-    return i.reply("Không có quyền 😏");
+  if (i.user.id !== OWNER_ID) {
+    return i.reply("Không có quyền.");
+  }
 
   if (i.commandName === "resetmemory") {
     memory = {};
     saveMemory();
-    return i.reply("Reset xong rồi.");
+    return i.reply("Đã reset memory.");
   }
 
   if (i.commandName === "shutdown") {
-    await i.reply("Tắt bot.");
+    await i.reply("Bot off.");
     process.exit(0);
   }
 });
 
-// ========= MENTION CHAT =========
+// ================= CHAT (OPENROUTER) =================
 client.on("messageCreate", async msg => {
   if (msg.author.bot) return;
   if (!msg.mentions.has(client.user)) return;
 
-  const content = msg.content.replace(`<@${client.user.id}>`, "").trim();
+  const content = msg.content
+    .replace(`<@${client.user.id}>`, "")
+    .trim();
   if (!content) return;
 
   const uid = msg.author.id;
@@ -220,7 +229,7 @@ client.on("messageCreate", async msg => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: CHAT_MODEL,
           messages: [
             { role: "system", content: systemPrompt(uid) },
             ...chat
@@ -233,7 +242,7 @@ client.on("messageCreate", async msg => {
 
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content;
-    if (!reply) return msg.reply("Lag rồi 😭");
+    if (!reply) return msg.reply("Lag rồi.");
 
     chat.push({ role: "assistant", content: reply });
     saveMemory();
@@ -243,10 +252,21 @@ client.on("messageCreate", async msg => {
     for (let i = 1; i < parts.length; i++) {
       await msg.channel.send(parts[i]);
     }
-  } catch (e) {
-    console.error(e);
+
+  } catch (err) {
+    console.error("CHAT ERROR:", err);
     msg.reply("API chết.");
   }
 });
 
+// ================= ANTI-CRASH =================
+process.on("unhandledRejection", err => {
+  console.error("UNHANDLED:", err);
+});
+
+process.on("uncaughtException", err => {
+  console.error("UNCAUGHT:", err);
+});
+
+// ================= LOGIN =================
 client.login(process.env.DISCORD_TOKEN);
