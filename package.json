@@ -1,17 +1,16 @@
 {
   "name": "hyperai",
   "version": "1.0.0",
+  "description": "Discord AI bot with OpenRouter + Gemini image",
   "type": "module",
-  "main": "src/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node src/index.js"
-  },
-  "engines": {
-    "node": ">=20"
+    "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.15.3",
+    "discord.js": "^14.16.3",
+    "node-fetch": "^3.3.2",
     "dotenv": "^16.4.5",
-    "node-fetch": "^3.3.2"
+    "@google/generative-ai": "^0.21.0"
   }
 }
