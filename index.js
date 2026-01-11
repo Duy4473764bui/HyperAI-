@@ -16,7 +16,11 @@ const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
 
-const ALLOW_CHANNEL_ID = "1456850825145225411";
+const ALLOW_CHANNEL_IDS = [
+  "1456850825145225411",
+  "1418081915126419536",
+  "1418455525804212274"
+];
 const WELCOME_CHANNEL_ID = "1418081915126419536";
 
 // ========= DISCORD =========
@@ -166,7 +170,7 @@ client.once("ready", () => {
 // ========= INTERACTION =========
 client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
-  if (i.channelId !== ALLOW_CHANNEL_ID)
+  if (!ALLOW_CHANNEL_IDS.includes(i.channelId))
     return i.reply({ content: "Dùng bot ở đúng kênh.", ephemeral: true });
 
   if (i.commandName === "ping") {
