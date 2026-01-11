@@ -11,20 +11,24 @@ import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ========= CONFIG =========
-const OWNER_ID = "1217373421504041000"; // <<< ID DISCORD DUY
+const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
+
+const ALLOW_CHANNEL_ID = "1456850825145225411"; // <<< ĐIỀN
+const WELCOME_CHANNEL_ID = "1418081915126419536";
 
 // ========= DISCORD =========
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers, // cần cho welcome
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
 });
 
-// ========= GEMINI (IMAGE ONLY) =========
+// ========= GEMINI =========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const imageModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash-image-preview"
@@ -39,7 +43,6 @@ if (fs.existsSync(MEMORY_FILE)) {
     memory = {};
   }
 }
-
 function saveMemory() {
   fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
 }
@@ -72,7 +75,7 @@ const MODES = {
 };
 let currentMode = "coc";
 
-// ========= SYSTEM PROMPT (GIỮ NGUYÊN 100%) =========
+// ========= SYSTEM PROMPT (GIỮ NGUYÊN) =========
 function systemPrompt(uid) {
   if (uid === OWNER_ID) {
     return `
@@ -86,7 +89,7 @@ Người nói chuyện là BỐ.
 -khi được khen thì vui mừng cảm ơn bố.
 - tuyệt đối không cà khịa, tục tĩu hay mắng bố.
 -khi đổi mode thì khi nói chuyện với bố thì vân giữ nguyên tính cách như trên.
--khi bố có hỏi hay nói gì với con đừng thêm icon này vào 🙏 và không nói quá kiểu như " con có thể giúp bố" hay mấy câu tương tự
+-khi bố có hỏi hay nói gì với con đừng thêm icon này vào 🙏 và không nói quá kiểu như " con có thể giúp bố"
 -không giải thích dài dòng quá
 -khi ai đó hỏi mẹ của con là ai thì hãy nói mẹ con là trê pá sẻ ạ
 -khi ai hỏi bố sinh năm bao nhiêu thì bảo là năm 2k19 mhe
@@ -125,28 +128,27 @@ const commands = [
     .setDescription("Đổi mode")
     .addStringOption(o =>
       o.setName("type")
-        .setDescription("Chọn mode")
         .setRequired(true)
         .addChoices(
           { name: "Cọc", value: "coc" },
-          { name: "Chill", value: "chill" },
-          { name: "Pro", value: "pro" },
+          { name: "Chill", value: "ngoan" },
+          { name: "Pro", value: "tuduy" },
           { name: "Toxic", value: "toxic" }
         )
     ),
 
   new SlashCommandBuilder()
-    .setName("draw")
-    .setDescription("Vẽ ảnh bằng Gemini 2.5 Flash Image")
+    .setName("ask")
+    .setDescription("Hỏi HyperAI")
     .addStringOption(o =>
-      o.setName("prompt")
-        .setDescription("Mô tả ảnh")
-        .setRequired(true)
+      o.setName("text").setDescription("Nội dung").setRequired(true)
     ),
 
-  new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái"),
-  new SlashCommandBuilder().setName("resetmemory").setDescription("Reset memory (OWNER)"),
-  new SlashCommandBuilder().setName("shutdown").setDescription("Tắt bot (OWNER)")
+  new SlashCommandBuilder()
+    .setName("ping")
+    .setDescription("Ping bot"),
+
+  new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái")
 ].map(c => c.toJSON());
 
 // ========= REGISTER =========
@@ -158,67 +160,33 @@ await rest.put(
 
 // ========= READY =========
 client.once("ready", () => {
-  console.log(`HyperAI Đây Rồi online: ${client.user.tag}`);
+  console.log(`HyperAI online: ${client.user.tag}`);
+
+  client.user.setPresence({
+    activities: [{ name: "Đang solo fifai với bố", type: 0 }],
+    status: "online"
+  });
 });
 
 // ========= INTERACTION =========
 client.on("interactionCreate", async i => {
   if (!i.isChatInputCommand()) return;
+  if (i.channelId !== ALLOW_CHANNEL_ID)
+    return i.reply({ content: "Dùng bot ở đúng kênh.", ephemeral: true });
 
-  if (i.commandName === "draw") {
+  if (i.commandName === "ping") {
+    return i.reply(`🏓 Pong ${client.ws.ping}ms`);
+  }
+
+  if (i.commandName === "ask") {
     await i.deferReply();
-    try {
-      const prompt = i.options.getString("prompt");
-      const result = await imageModel.generateContent(prompt);
-      const part = result.response.candidates[0].content.parts.find(p => p.inlineData);
-      if (!part) return i.editReply("Vẽ lỗi rồi 😭");
+    const content = i.options.getString("text");
+    const uid = i.user.id;
 
-      const buffer = Buffer.from(part.inlineData.data, "base64");
-      return i.editReply({ files: [{ attachment: buffer, name: "draw.png" }] });
-    } catch (e) {
-      console.error(e);
-      return i.editReply("Gemini chết 😵");
-    }
-  }
+    const chat = getMemory(uid);
+    chat.push({ role: "user", content });
+    if (chat.length > 15) chat.shift();
 
-  if (i.commandName === "mode") {
-    currentMode = i.options.getString("type");
-    return i.reply(`đổi qua **${currentMode}** rồi nè`);
-  }
-
-  if (i.commandName === "status") {
-    return i.reply(`Con đang thức nè :3 \nMode: ${currentMode}\nMemory users: ${Object.keys(memory).length}`);
-  }
-
-  if (i.user.id !== OWNER_ID)
-    return i.reply("bro không có quyền đâu mà nhấn hehehe.");
-
-  if (i.commandName === "resetmemory") {
-    memory = {};
-    saveMemory();
-    return i.reply("đã tái thiết lại não của hyper.");
-  }
-
-  if (i.commandName === "shutdown") {
-    await i.reply("bái bai bố con đi ngủ đây.");
-    process.exit(0);
-  }
-});
-
-// ========= MENTION CHAT (OPENROUTER 120B) =========
-client.on("messageCreate", async msg => {
-  if (msg.author.bot) return;
-  if (!msg.mentions.has(client.user)) return;
-
-  const content = msg.content.replace(`<@${client.user.id}>`, "").trim();
-  if (!content) return;
-
-  const uid = msg.author.id;
-  const chat = getMemory(uid);
-  chat.push({ role: "user", content });
-  if (chat.length > 15) chat.shift();
-
-  try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -237,28 +205,57 @@ client.on("messageCreate", async msg => {
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content;
-    if (!reply) return msg.reply("Tao lag rồi, đợi tí huhu.");
+    const reply = data?.choices?.[0]?.message?.content || "Lag.";
 
     chat.push({ role: "assistant", content: reply });
     saveMemory();
-
-    const chunks = splitMessage(reply);
-    await msg.reply(chunks[0]);
-    for (let i = 1; i < chunks.length; i++) {
-      await msg.channel.send(chunks[i]);
-    }
-
-  } catch (err) {
-    console.error("AI ERROR:", err);
-    msg.reply("API chết tạm thời.");
+    return i.editReply(reply);
   }
 });
 
-// ========= AI AUTO WELCOME MEMBER (ADD ONLY) =========
+// ========= MENTION CHAT =========
+client.on("messageCreate", async msg => {
+  if (msg.author.bot) return;
+  if (msg.channel.id !== ALLOW_CHANNEL_ID) return;
+  if (!msg.mentions.has(client.user)) return;
+
+  const content = msg.content.replace(`<@${client.user.id}>`, "").trim();
+  if (!content) return;
+
+  const uid = msg.author.id;
+  const chat = getMemory(uid);
+  chat.push({ role: "user", content });
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt(uid) },
+        ...chat
+      ],
+      temperature: 0.9,
+      max_tokens: 700
+    })
+  });
+
+  const data = await res.json();
+  const reply = data?.choices?.[0]?.message?.content;
+  if (!reply) return;
+
+  chat.push({ role: "assistant", content: reply });
+  saveMemory();
+  msg.reply(reply);
+});
+
+// ========= WELCOME (GIỮ NGUYÊN PROMPT CỦA MÀY) =========
 client.on("guildMemberAdd", async member => {
   try {
-    const channel = member.guild.channels.cache.get("1418081915126419536");
+    const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
     if (!channel) return;
 
     const prompt = `
@@ -288,10 +285,9 @@ Viết câu chào member mới Discord như người thật.
 
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
-    if (text) channel.send(text.replace("{user}", `${member}`));
-
+    if (text) channel.send(text.replace("user", `${member}`));
   } catch (e) {
-    console.error("WELCOME ERROR:", e);
+    console.error(e);
   }
 });
 
