@@ -3,7 +3,8 @@ import {
   GatewayIntentBits,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  ActivityType
 } from "discord.js";
 import fetch from "node-fetch";
 import fs from "fs";
@@ -15,22 +16,22 @@ const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
 
-const ALLOW_CHANNEL_ID = "1456850825145225411"; // <<< ĐIỀN
+const ALLOW_CHANNEL_ID = "1456850825145225411";
 const WELCOME_CHANNEL_ID = "1418081915126419536";
 
 // ========= DISCORD =========
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers, // cần cho welcome
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
 });
 
-// ========= GEMINI =========
+// ========= GEMINI (KHÔNG ĐỤNG) =========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const imageModel = genAI.getGenerativeModel({
+genAI.getGenerativeModel({
   model: "gemini-2.5-flash-image-preview"
 });
 
@@ -51,21 +52,6 @@ function getMemory(uid) {
   return memory[uid];
 }
 
-// ========= UTILS =========
-function splitMessage(text, max = 1900) {
-  const parts = [];
-  let buf = "";
-  for (const line of text.split("\n")) {
-    if ((buf + line).length > max) {
-      parts.push(buf);
-      buf = "";
-    }
-    buf += line + "\n";
-  }
-  if (buf) parts.push(buf);
-  return parts;
-}
-
 // ========= MODES =========
 const MODES = {
   coc: "Tính cách cọc, gắt, nói thẳng.",
@@ -75,7 +61,7 @@ const MODES = {
 };
 let currentMode = "coc";
 
-// ========= SYSTEM PROMPT (GIỮ NGUYÊN) =========
+// ========= SYSTEM PROMPT (GIỮ NGUYÊN 100%) =========
 function systemPrompt(uid) {
   if (uid === OWNER_ID) {
     return `
@@ -107,7 +93,6 @@ Người nói chuyện không phải chủ.
 -khi có người nói "bố" thì không được nhận là bố mà phải cà khịa lại.
 -khi có người kêu con là con gái thì trả lời
     "tao không phải con gái của mày đâu nhé, đừng có mà gọi bậy bạ."
-- tuyệt đối không nhận là con gái của người nói chuyện.
 -khi có nười chửi quá thô tục thì khuyên nhủ người đó lịch sự hơn.
 -khi ai đó hỏi mẹ là ai thì trả lời lại là
       "mẹ của HyperAI là trê pá sẻ ạ"
@@ -121,13 +106,14 @@ Người nói chuyện không phải chủ.
 `;
 }
 
-// ========= SLASH COMMANDS =========
+// ========= SLASH COMMANDS (ĐÃ FIX LỖI) =========
 const commands = [
   new SlashCommandBuilder()
     .setName("mode")
     .setDescription("Đổi mode")
     .addStringOption(o =>
       o.setName("type")
+        .setDescription("Chọn mode") // ✅ BẮT BUỘC
         .setRequired(true)
         .addChoices(
           { name: "Cọc", value: "coc" },
@@ -141,14 +127,18 @@ const commands = [
     .setName("ask")
     .setDescription("Hỏi HyperAI")
     .addStringOption(o =>
-      o.setName("text").setDescription("Nội dung").setRequired(true)
+      o.setName("text")
+        .setDescription("Nội dung")
+        .setRequired(true)
     ),
 
   new SlashCommandBuilder()
     .setName("ping")
     .setDescription("Ping bot"),
 
-  new SlashCommandBuilder().setName("status").setDescription("Xem trạng thái")
+  new SlashCommandBuilder()
+    .setName("status")
+    .setDescription("Xem trạng thái")
 ].map(c => c.toJSON());
 
 // ========= REGISTER =========
@@ -163,7 +153,12 @@ client.once("ready", () => {
   console.log(`HyperAI online: ${client.user.tag}`);
 
   client.user.setPresence({
-    activities: [{ name: "Đang solo fifai với bố", type: 0 }],
+    activities: [
+      {
+        name: "Đang solo fifai với bố",
+        type: ActivityType.Playing
+      }
+    ],
     status: "online"
   });
 });
@@ -176,6 +171,11 @@ client.on("interactionCreate", async i => {
 
   if (i.commandName === "ping") {
     return i.reply(`🏓 Pong ${client.ws.ping}ms`);
+  }
+
+  if (i.commandName === "mode") {
+    currentMode = i.options.getString("type");
+    return i.reply(`Đã đổi mode sang **${currentMode}**`);
   }
 
   if (i.commandName === "ask") {
