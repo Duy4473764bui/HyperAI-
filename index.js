@@ -256,21 +256,23 @@ client.on("messageCreate", async msg => {
   msg.reply(reply);
 });
 
-// ========= WELCOME (GIỮ NGUYÊN PROMPT CỦA MÀY) =========
+// ========= WELCOME =========
 client.on("guildMemberAdd", async member => {
   try {
     const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
     if (!channel) return;
 
     const prompt = `
-Viết câu chào member mới Discord như người thật.
+Viết 1 câu chào thành viên mới Discord như người thật.
 - 1–2 câu
-- Thân thiện
-- Mention user
-- BẮT BUỘC có:
+- Thân thiện, tự nhiên
+- KHÔNG dùng @, KHÔNG dùng tên người
+- KHÔNG emoji quá nhiều
+- BẮT BUỘC nhắc:
 <#1443111324459729050>
 <#1450474277550817454>
 - Nhắc tham gia giveaway
+- Mỗi lần phải khác nhau
 `;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -283,15 +285,19 @@ Viết câu chào member mới Discord như người thật.
         model: MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.9,
-        max_tokens: 100
+        max_tokens: 120
       })
     });
 
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
-    if (text) channel.send(text.replace("user", `${member}`));
+    if (!text) return;
+
+    // ✅ AUTO MENTION CHUẨN
+    await channel.send(`${member} ${text}`);
+
   } catch (e) {
-    console.error(e);
+    console.error("WELCOME ERROR:", e);
   }
 });
 
