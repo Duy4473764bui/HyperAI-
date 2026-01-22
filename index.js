@@ -16,7 +16,7 @@ const OWNER_ID = "1217373421504041000";
 const MEMORY_FILE = "./memory.json";
 const MODEL = "openai/gpt-oss-120b";
 
-const ALLOW_CHANNEL_ID = "";
+const ALLOW_CHANNEL_ID = "1418081915126419536";
 const WELCOME_CHANNEL_ID = "1418081915126419536";
 
 // ========= DISCORD =========
